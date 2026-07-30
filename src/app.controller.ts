@@ -18,7 +18,7 @@ export class AppController {
   <div class="max-w-6xl mx-auto space-y-8">
     <header class="flex justify-between items-center border-b border-slate-800 pb-6">
       <div>
-        <h1 class="text-3xl font-bold text-white tracking-tight">Resolve Dashboard</h1>
+        <h1 class="text-3xl font-bold text-white tracking-tight">Resolve Dashboard Test</h1>
         <p class="text-slate-400 text-sm mt-1">v0 Core Tickets Management System</p>
       </div>
       <div id="stats-box" class="flex gap-4">
