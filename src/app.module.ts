@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuditModule } from "./audit/audit.module";
 import { TicketsModule } from "./tickets/tickets.module";
 import { StatsModule } from "./stats/stats.module";
+import { HealthModule } from "./health/health.module";
 import { AppController } from "./app.controller";
 
 @Module({
@@ -18,6 +19,7 @@ import { AppController } from "./app.controller";
     AuditModule,
     TicketsModule,
     StatsModule,
+    HealthModule,
   ],
   controllers: [AppController],
 })
