@@ -100,6 +100,29 @@ describe('TicketsService', () => {
       );
     });
 
+    it('allows reopening a resolved ticket and clears resolvedAt', async () => {
+      const t = await service.create('test', valid);
+      for (const to of ['open', 'in_progress', 'resolved']) {
+        await service.changeStatus('test', t.id, to);
+      }
+      const resolved = await service.findById(t.id);
+      expect(resolved.resolvedAt).not.toBeNull();
+
+      const reopened = await service.changeStatus('test', t.id, 'open');
+      expect(reopened.status).toBe('open');
+      expect(reopened.resolvedAt).toBeNull();
+    });
+
+    it('allows the reopened ticket to walk the happy path again', async () => {
+      const t = await service.create('test', valid);
+      for (const to of ['open', 'in_progress', 'resolved', 'open', 'in_progress', 'resolved', 'closed']) {
+        await service.changeStatus('test', t.id, to);
+      }
+      const final = await service.findById(t.id);
+      expect(final.status).toBe('closed');
+      expect(final.resolvedAt).not.toBeNull();
+    });
+
     it('names the allowed next states in the error', async () => {
       const t = await service.create('test', valid);
       await expect(service.changeStatus('test', t.id, 'closed')).rejects.toThrow(
@@ -150,6 +173,19 @@ describe('TicketsService', () => {
       expect(entries[0].actor).toBe('narek');
       expect(entries[1].details).toEqual({ from: 'new', to: 'open' });
       expect(entries[2].actor).toBe('agent-1');
+    });
+
+    it('records a dedicated action when reopening a resolved ticket', async () => {
+      const t = await service.create('narek', valid);
+      for (const to of ['open', 'in_progress', 'resolved']) {
+        await service.changeStatus('narek', t.id, to);
+      }
+      await service.changeStatus('narek', t.id, 'open');
+
+      const entries = await audit.list(t.id);
+      const last = entries[entries.length - 1];
+      expect(last.action).toBe('ticket.reopened');
+      expect(last.details).toEqual({ from: 'resolved', to: 'open' });
     });
   });
 
