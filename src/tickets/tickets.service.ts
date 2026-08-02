@@ -96,6 +96,24 @@ export class TicketsService {
     return ticket;
   }
 
+  async reopen(actor: string, id: string, reason?: string): Promise<Ticket> {
+    const ticket = await this.findById(id);
+    if (ticket.status !== 'resolved') {
+      throw new BadRequestException(
+        `cannot reopen ticket from '${ticket.status}'; only 'resolved' tickets can be reopened`,
+      );
+    }
+    ticket.status = 'open';
+    ticket.resolvedAt = null;
+    await this.tickets.save(ticket);
+    await this.audit.record(actor, 'ticket.reopened', ticket.id, {
+      from: 'resolved',
+      to: 'open',
+      reason: reason?.trim() || undefined,
+    });
+    return ticket;
+  }
+
   async addComment(
     actor: string,
     id: string,

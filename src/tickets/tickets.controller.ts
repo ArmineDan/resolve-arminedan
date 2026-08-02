@@ -41,6 +41,15 @@ export class TicketsController {
     return this.ticketsService.changeStatus(actor, id, body?.to);
   }
 
+  @Post(':id/reopen')
+  reopen(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+    @Headers('x-actor') actor = 'api',
+  ) {
+    return this.ticketsService.reopen(actor, id, body?.reason);
+  }
+
   @Post(':id/comments')
   addComment(
     @Param('id') id: string,

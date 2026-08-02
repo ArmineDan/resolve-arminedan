@@ -108,6 +108,71 @@ describe('TicketsService', () => {
     });
   });
 
+  describe('reopening', () => {
+    it('reopens a resolved ticket back to open and clears resolvedAt', async () => {
+      const t = await service.create('test', valid);
+      await service.changeStatus('test', t.id, 'open');
+      await service.changeStatus('test', t.id, 'in_progress');
+      await service.changeStatus('test', t.id, 'resolved');
+
+      const reopened = await service.reopen('narek', t.id, 'customer says it recurred');
+      expect(reopened.status).toBe('open');
+      expect(reopened.resolvedAt).toBeNull();
+
+      const fetched = await service.findById(t.id);
+      expect(fetched.status).toBe('open');
+      expect(fetched.resolvedAt).toBeNull();
+    });
+
+    it('allows re-resolving after a reopen', async () => {
+      const t = await service.create('test', valid);
+      await service.changeStatus('test', t.id, 'open');
+      await service.changeStatus('test', t.id, 'in_progress');
+      await service.changeStatus('test', t.id, 'resolved');
+      await service.reopen('test', t.id);
+      await service.changeStatus('test', t.id, 'in_progress');
+      const t2 = await service.changeStatus('test', t.id, 'resolved');
+      expect(t2.status).toBe('resolved');
+      expect(t2.resolvedAt).not.toBeNull();
+    });
+
+    it('rejects reopening a ticket that is not resolved', async () => {
+      const t = await service.create('test', valid);
+      await service.changeStatus('test', t.id, 'open');
+      await expect(service.reopen('test', t.id)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects reopening a closed ticket', async () => {
+      const t = await service.create('test', valid);
+      for (const to of ['open', 'in_progress', 'resolved', 'closed']) {
+        await service.changeStatus('test', t.id, to);
+      }
+      await expect(service.reopen('test', t.id)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('records a ticket.reopened audit entry with the reason', async () => {
+      const t = await service.create('test', valid);
+      await service.changeStatus('test', t.id, 'open');
+      await service.changeStatus('test', t.id, 'in_progress');
+      await service.changeStatus('test', t.id, 'resolved');
+      await service.reopen('narek', t.id, 'customer says it recurred');
+
+      const entries = await audit.list(t.id);
+      const reopenEntry = entries.find((e) => e.action === 'ticket.reopened');
+      expect(reopenEntry).toBeDefined();
+      expect(reopenEntry?.actor).toBe('narek');
+      expect(reopenEntry?.details).toEqual({
+        from: 'resolved',
+        to: 'open',
+        reason: 'customer says it recurred',
+      });
+    });
+  });
+
   describe('comments', () => {
     it('adds public and internal comments in order', async () => {
       const t = await service.create('test', valid);
