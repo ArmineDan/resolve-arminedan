@@ -16,7 +16,7 @@ export const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   open: ['in_progress'],
   in_progress: ['waiting_customer', 'resolved'],
   waiting_customer: ['in_progress'],
-  resolved: ['closed'],
+  resolved: ['closed', 'open'],
   closed: [],
 };
 
@@ -84,16 +84,31 @@ export class TicketsService {
       );
     }
     const from = ticket.status;
+    const isReopen = from === 'resolved' && to === 'open';
     ticket.status = to as TicketStatus;
     if (ticket.status === 'resolved') {
       ticket.resolvedAt = new Date().toISOString();
+    } else if (isReopen) {
+      ticket.resolvedAt = null;
     }
     await this.tickets.save(ticket);
-    await this.audit.record(actor, 'ticket.status_changed', ticket.id, {
-      from,
-      to,
-    });
+    await this.audit.record(
+      actor,
+      isReopen ? 'ticket.reopened' : 'ticket.status_changed',
+      ticket.id,
+      { from, to },
+    );
     return ticket;
+  }
+
+  async reopen(actor: string, id: string): Promise<Ticket> {
+    const ticket = await this.findById(id);
+    if (ticket.status !== 'resolved') {
+      throw new BadRequestException(
+        `cannot reopen ticket in status '${ticket.status}'; only resolved tickets can be reopened`,
+      );
+    }
+    return this.changeStatus(actor, id, 'open');
   }
 
   async addComment(

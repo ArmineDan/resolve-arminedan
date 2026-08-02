@@ -108,6 +108,66 @@ describe('TicketsService', () => {
     });
   });
 
+  describe('reopening', () => {
+    const resolve = async (id: string) => {
+      for (const to of ['open', 'in_progress', 'resolved']) {
+        await service.changeStatus('test', id, to);
+      }
+    };
+
+    it('reopens a resolved ticket back to open and clears resolvedAt', async () => {
+      const t = await service.create('test', valid);
+      await resolve(t.id);
+      const resolved = await service.findById(t.id);
+      expect(resolved.status).toBe('resolved');
+      expect(resolved.resolvedAt).not.toBeNull();
+
+      const reopened = await service.reopen('narek', t.id);
+      expect(reopened.status).toBe('open');
+      expect(reopened.resolvedAt).toBeNull();
+    });
+
+    it('allows a reopened ticket to go through the resolve/close cycle again', async () => {
+      const t = await service.create('test', valid);
+      await resolve(t.id);
+      await service.reopen('test', t.id);
+      for (const to of ['in_progress', 'resolved', 'closed']) {
+        await service.changeStatus('test', t.id, to);
+      }
+      const final = await service.findById(t.id);
+      expect(final.status).toBe('closed');
+      expect(final.resolvedAt).not.toBeNull();
+    });
+
+    it('rejects reopening a ticket that is not resolved', async () => {
+      const t = await service.create('test', valid);
+      await expect(service.reopen('test', t.id)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects reopening a closed ticket', async () => {
+      const t = await service.create('test', valid);
+      await resolve(t.id);
+      await service.changeStatus('test', t.id, 'closed');
+      await expect(service.reopen('test', t.id)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('records a ticket.reopened audit entry with the actor', async () => {
+      const t = await service.create('test', valid);
+      await resolve(t.id);
+      await service.reopen('narek', t.id);
+
+      const entries = await audit.list(t.id);
+      const reopenEntry = entries.find((e) => e.action === 'ticket.reopened');
+      expect(reopenEntry).toBeDefined();
+      expect(reopenEntry?.actor).toBe('narek');
+      expect(reopenEntry?.details).toEqual({ from: 'resolved', to: 'open' });
+    });
+  });
+
   describe('comments', () => {
     it('adds public and internal comments in order', async () => {
       const t = await service.create('test', valid);
