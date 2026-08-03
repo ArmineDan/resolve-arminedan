@@ -158,4 +158,82 @@ describe('TicketsService', () => {
       NotFoundException,
     );
   });
+
+  describe('pagination', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 5; i++) {
+        await service.create('test', { ...valid, subject: `Ticket ${i}` });
+        // createdAt has millisecond resolution; space out creation so
+        // order is deterministic for the ordering assertions below.
+        await new Promise((resolve) => setTimeout(resolve, 2));
+      }
+    });
+
+    it('defaults to limit 50, offset 0', async () => {
+      const page = await service.findAll();
+      expect(page.data).toHaveLength(5);
+      expect(page.pagination).toEqual({
+        limit: 50,
+        offset: 0,
+        total: 5,
+        hasMore: false,
+      });
+    });
+
+    it('applies limit and offset, preserving createdAt order', async () => {
+      const page = await service.findAll({ limit: '2', offset: '1' });
+      expect(page.data).toHaveLength(2);
+      expect(page.data.map((t) => t.subject)).toEqual(['Ticket 1', 'Ticket 2']);
+      expect(page.pagination).toEqual({
+        limit: 2,
+        offset: 1,
+        total: 5,
+        hasMore: true,
+      });
+    });
+
+    it('reports total against the filtered set, not the whole table', async () => {
+      await service.create('test', { ...valid, priority: 'urgent' });
+      const page = await service.findAll({ priority: 'urgent' });
+      expect(page.pagination.total).toBe(1);
+      expect(page.data).toHaveLength(1);
+    });
+
+    it('applies offset after filtering', async () => {
+      await service.create('test', { ...valid, priority: 'urgent' });
+      await service.create('test', { ...valid, priority: 'urgent' });
+      const page = await service.findAll({ priority: 'urgent', offset: '1' });
+      expect(page.data).toHaveLength(1);
+      expect(page.pagination.total).toBe(2);
+    });
+
+    it('clamps limit above the max to 200', async () => {
+      const page = await service.findAll({ limit: '9999' });
+      expect(page.pagination.limit).toBe(200);
+    });
+
+    it('rejects a non-integer limit', async () => {
+      await expect(service.findAll({ limit: 'abc' })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a limit below 1', async () => {
+      await expect(service.findAll({ limit: '0' })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a negative offset', async () => {
+      await expect(service.findAll({ offset: '-1' })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('returns an empty page past the end without error', async () => {
+      const page = await service.findAll({ offset: '100' });
+      expect(page.data).toHaveLength(0);
+      expect(page.pagination.hasMore).toBe(false);
+    });
+  });
 });

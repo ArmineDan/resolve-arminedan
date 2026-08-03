@@ -10,14 +10,33 @@ export class TicketsRepository {
   ) {}
 
   async findAll(
-    filter: { status?: TicketStatus; priority?: TicketPriority } = {},
+    filter: {
+      status?: TicketStatus;
+      priority?: TicketPriority;
+      limit?: number;
+      offset?: number;
+    } = {},
   ): Promise<Ticket[]> {
     const where: Record<string, unknown> = {};
     if (filter.status) where.status = filter.status;
     if (filter.priority) where.priority = filter.priority;
-    const tickets = await this.repo.find({ where, order: { createdAt: 'ASC' } });
+    const tickets = await this.repo.find({
+      where,
+      order: { createdAt: 'ASC' },
+      ...(filter.limit !== undefined ? { take: filter.limit } : {}),
+      ...(filter.offset !== undefined ? { skip: filter.offset } : {}),
+    });
     tickets.forEach((t) => this.sortComments(t));
     return tickets;
+  }
+
+  async count(
+    filter: { status?: TicketStatus; priority?: TicketPriority } = {},
+  ): Promise<number> {
+    const where: Record<string, unknown> = {};
+    if (filter.status) where.status = filter.status;
+    if (filter.priority) where.priority = filter.priority;
+    return this.repo.count({ where });
   }
 
   async findById(id: string): Promise<Ticket | null> {

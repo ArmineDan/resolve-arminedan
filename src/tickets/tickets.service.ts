@@ -11,6 +11,19 @@ import { newId } from '../common/ids';
 
 const PRIORITIES: TicketPriority[] = ['low', 'normal', 'high', 'urgent'];
 
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 200;
+
+export interface Page<T> {
+  data: T[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
 export const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   new: ['open'],
   open: ['in_progress'],
@@ -125,9 +138,42 @@ export class TicketsService {
   }
 
   async findAll(
-    filter: { status?: TicketStatus; priority?: TicketPriority } = {},
-  ): Promise<Ticket[]> {
-    return this.tickets.findAll(filter);
+    filter: {
+      status?: TicketStatus;
+      priority?: TicketPriority;
+      limit?: string;
+      offset?: string;
+    } = {},
+  ): Promise<Page<Ticket>> {
+    const limit = this.parseLimit(filter.limit);
+    const offset = this.parseOffset(filter.offset);
+    const { status, priority } = filter;
+    const [data, total] = await Promise.all([
+      this.tickets.findAll({ status, priority, limit, offset }),
+      this.tickets.count({ status, priority }),
+    ]);
+    return {
+      data,
+      pagination: { limit, offset, total, hasMore: offset + data.length < total },
+    };
+  }
+
+  private parseLimit(raw?: string): number {
+    if (raw === undefined) return DEFAULT_LIMIT;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new BadRequestException('limit must be a positive integer');
+    }
+    return Math.min(n, MAX_LIMIT);
+  }
+
+  private parseOffset(raw?: string): number {
+    if (raw === undefined) return 0;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0) {
+      throw new BadRequestException('offset must be a non-negative integer');
+    }
+    return n;
   }
 
   async findById(id: string): Promise<Ticket> {
