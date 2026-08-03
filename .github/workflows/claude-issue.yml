@@ -28,4 +28,5 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: ${{ github.event.issue.body || github.event.comment.body }}
+          auto_approve: true
+          prompt: "${{ github.event.issue.body || github.event.comment.body }}"
