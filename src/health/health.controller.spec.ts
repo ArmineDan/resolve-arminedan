@@ -20,4 +20,8 @@ describe('HealthController', () => {
     expect(typeof result.uptime).toBe('number');
     expect(result.uptime).toBeGreaterThanOrEqual(0);
   });
+
+  it('ping returns ok status', () => {
+    expect(controller.ping()).toEqual({ status: 'ok' });
+  });
 });

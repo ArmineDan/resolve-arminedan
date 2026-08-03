@@ -11,4 +11,9 @@ export class HealthController {
       uptime: process.uptime(),
     };
   }
+
+  @Get('ping')
+  ping() {
+    return { status: 'ok' };
+  }
 }
