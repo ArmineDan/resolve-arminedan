@@ -153,6 +153,36 @@ describe('TicketsService', () => {
     });
   });
 
+  describe('pagination', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 5; i++) {
+        await service.create('test', { ...valid, subject: `Ticket ${i}` });
+      }
+    });
+
+    it('defaults to limit 50', async () => {
+      const tickets = await service.findAll();
+      expect(tickets).toHaveLength(5);
+    });
+
+    it('applies limit and offset', async () => {
+      const tickets = await service.findAll({ limit: '2', offset: '1' });
+      expect(tickets.map((t) => t.subject)).toEqual(['Ticket 1', 'Ticket 2']);
+    });
+
+    it('caps limit at 200', async () => {
+      const tickets = await service.findAll({ limit: '9999' });
+      expect(tickets).toHaveLength(5);
+    });
+
+    it('applies pagination after filtering', async () => {
+      await service.create('test', { ...valid, subject: 'Low one', priority: 'low' });
+      const tickets = await service.findAll({ priority: 'low', limit: '10' });
+      expect(tickets).toHaveLength(1);
+      expect(tickets[0].subject).toBe('Low one');
+    });
+  });
+
   it('404s on unknown tickets', async () => {
     await expect(service.findById('tkt_missing')).rejects.toThrow(
       NotFoundException,

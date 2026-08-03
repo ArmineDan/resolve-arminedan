@@ -22,6 +22,18 @@ export const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function parsePagination(limit?: string, offset?: string) {
+  const parsedLimit = Number(limit);
+  const parsedOffset = Number(offset);
+  return {
+    limit:
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, 200)
+        : 50,
+    offset: Number.isFinite(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0,
+  };
+}
+
 @Injectable()
 export class TicketsService {
   constructor(
@@ -125,9 +137,16 @@ export class TicketsService {
   }
 
   async findAll(
-    filter: { status?: TicketStatus; priority?: TicketPriority } = {},
+    filter: {
+      status?: TicketStatus;
+      priority?: TicketPriority;
+      limit?: string;
+      offset?: string;
+    } = {},
   ): Promise<Ticket[]> {
-    return this.tickets.findAll(filter);
+    const tickets = await this.tickets.findAll(filter);
+    const { limit, offset } = parsePagination(filter.limit, filter.offset);
+    return tickets.slice(offset, offset + limit);
   }
 
   async findById(id: string): Promise<Ticket> {
