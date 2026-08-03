@@ -31,3 +31,4 @@ jobs:
           prompt: "${{ github.event.issue.body || github.event.comment.body }}"
           claude_args: |
             --allowedTools "Bash(git:*),Bash(gh:*)"
+          show_full_output: true
