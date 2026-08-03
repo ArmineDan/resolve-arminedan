@@ -152,10 +152,12 @@ describe('TicketsService', () => {
       expect(entries[2].actor).toBe('agent-1');
     });
 
-    it('returns this ticket\'s audit trail newest first', async () => {
+    it('returns this ticket\'s audit trail newest first, scoped to that ticket', async () => {
       const t = await service.create('narek', valid);
       await service.changeStatus('narek', t.id, 'open');
       await service.addComment('agent-1', t.id, { author: 'agent-1', body: 'hi' });
+      const other = await service.create('other', valid);
+      await service.changeStatus('other', other.id, 'open');
 
       const entries = await service.findAuditTrail(t.id);
       expect(entries.map((e) => e.action)).toEqual([
@@ -163,6 +165,7 @@ describe('TicketsService', () => {
         'ticket.status_changed',
         'ticket.created',
       ]);
+      expect(entries.every((e) => e.ticketId === t.id)).toBe(true);
     });
 
     it('404s on an unknown ticket', async () => {

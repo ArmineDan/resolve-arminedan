@@ -140,6 +140,6 @@ export class TicketsService {
   async findAuditTrail(id: string): Promise<AuditEntry[]> {
     await this.findById(id);
     const entries = await this.audit.list(id);
-    return entries.reverse();
+    return [...entries].reverse();
   }
 }
