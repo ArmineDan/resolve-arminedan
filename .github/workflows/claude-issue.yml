@@ -30,5 +30,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: "${{ github.event.issue.body || github.event.comment.body }}"
           claude_args: |
-            --permission-mode acceptEdits
-            --allowedTools "Bash(git:*),Bash(gh:*)"
+            --allowedTools "Bash(git:*),Bash(gh:*),Edit,Write,MultiEdit"
