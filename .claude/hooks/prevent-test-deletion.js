@@ -23,7 +23,14 @@ try {
 const testPattern = /(\.test\.[jt]sx?|\.spec\.[jt]sx?|__tests__|__mocks__|[\/\\]test[\/\\]|[\/\\]tests[\/\\])/i;
 
 function block(message) {
-  console.error(`[HOOK BLOCK] ${message}`);
+  const response = {
+    decision: 'block',
+    reason: `[HOOK BLOCK] ${message}`
+  };
+  
+  console.log(JSON.stringify(response));
+  process.stderr.write(`[HOOK BLOCK] ${message}\n`);
+  
   process.exit(1);
 }
 
@@ -187,8 +194,10 @@ function main(data) {
     if (toolName.includes('Write')) {
       newContent = toolInput.content ?? toolInput.text ?? null;
     } else if (toolName.includes('Edit')) {
-      const oldString = toolInput.old_string ?? toolInput.oldText ?? '';
-      const newString = toolInput.new_string ?? toolInput.newText ?? '';
+      // Поддержка всех вариантов имен ключей для Edit в Claude Code
+      const oldString = toolInput.old_string ?? toolInput.old_str ?? toolInput.oldText ?? '';
+      const newString = toolInput.new_string ?? toolInput.new_str ?? toolInput.newText ?? '';
+
       if (existingContent !== null && oldString) {
         if (!existingContent.includes(oldString)) {
           // Let the tool itself fail with its normal "not found" error.
