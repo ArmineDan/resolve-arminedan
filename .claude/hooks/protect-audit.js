@@ -10,13 +10,22 @@ process.stdin.on("end", () => {
   try {
     payload = JSON.parse(input);
   } catch {
-    process.exit(0);
+    process.exit(0); 
   }
 
   const filePath = payload?.tool_input?.file_path;
-  if (typeof filePath === "string" && filePath.includes("src/audit/")) {
-    console.error("Refused: edits to src/audit/ are protected.");
-    process.exit(2);
+
+  if (typeof filePath === "string") {
+    const normalizedPath = filePath.replace(/\\/g, "/");
+
+    const isAuditDir = /(^|\/)src\/audit\//.test(normalizedPath);
+
+    if (isAuditDir) {
+      console.error(
+        "Refused: files in src/audit/ are protected to preserve audit trail integrity."
+      );
+      process.exit(2);
+    }
   }
 
   process.exit(0);
