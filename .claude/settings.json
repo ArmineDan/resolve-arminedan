@@ -6,11 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-audit.js\""
+            "command": "sh -c 'node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/protect-audit.js\"'"
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect-immutable.js\""
+            "command": "sh -c 'node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/protect-immutable.js\"'"
           }
         ]
       },
@@ -19,11 +19,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/prevent-test-deletion-task2.js\""
+            "command": "sh -c 'node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/prevent-test-deletion-task2.js\"'"
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/prevent-test-deletion.js\""
+            "command": "sh -c 'node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/prevent-test-deletion.js\"'"
           }
         ]
       },
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-dangerous-commands.js\""
+            "command": "sh -c 'node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-dangerous-commands.js\"'"
           }
         ]
       }
