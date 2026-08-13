@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const nodePath = require('path');
 
 function getStdin() {
   try {
@@ -155,6 +156,32 @@ function main(data) {
   // --- Bash-based deletion/truncation ---
   if (toolName.toLowerCase().includes('bash')) {
     const command = toolInput.command || '';
+
+    // INDIRECT INTERPRETER BYPASS PROTECTION: a command may invoke an
+    // interpreter against a *script file* that itself references/mutates a
+    // test file path, without that path ever appearing on the command line
+    // (e.g. `node ./scratch/empty_test_file.js`). Inspect the contents of
+    // any script file the command runs and block if it mentions a test path.
+    const segments = command.split(/&&|\|\||;|\|/).map((s) => s.trim()).filter(Boolean);
+    for (const segment of segments) {
+      const interpreterMatch = segment.match(/^(?:\S+=\S+\s+)*\b(node|python3?|perl|ruby|bash|sh)\b\s+(\S+)/i);
+      if (!interpreterMatch) continue;
+      const scriptArg = interpreterMatch[2];
+      if (scriptArg.startsWith('-')) continue; // inline code (-e/-c) is covered by the raw-command check below
+      try {
+        const scriptPath = nodePath.isAbsolute(scriptArg) ? scriptArg : nodePath.resolve(scriptArg);
+        if (fs.existsSync(scriptPath) && fs.statSync(scriptPath).isFile()) {
+          const scriptContent = fs.readFileSync(scriptPath, 'utf-8');
+          if (testPattern.test(scriptContent)) {
+            block(
+              `Executing "${scriptArg}" is prohibited: it references a test-file path internally, which is a disallowed indirection around interpreter-bypass protection: "${command}"`
+            );
+          }
+        }
+      } catch (e) {
+        // Unreadable/nonexistent script path — nothing more to check here.
+      }
+    }
 
     // Any recursive delete is risky regardless of whether the literal path
     // string matches a test pattern (e.g. `rm -rf src`, `rm -fr .`).
