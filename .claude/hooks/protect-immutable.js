@@ -19,12 +19,16 @@ process.stdin.on("end", () => {
                         /\.generated\.[jt]sx?$/.test(normalizedPath);
 
     if (isImmutable) {
-      // ASK MODE: Ask the human for explicit confirmation when modifying immutable files
+      const reason = `Target file '${filePath}' is an immutable build artifact or auto-generated file. Confirm if you explicitly intend to modify it.`;
+
+      // Return both top-level and nested structures for maximum CLI compatibility
       const response = {
+        permissionDecision: "ask",
+        permissionDecisionReason: reason,
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
           permissionDecision: "ask",
-          permissionDecisionReason: `Target file '${filePath}' is an immutable build artifact or auto-generated file. Confirm if you explicitly intend to modify it.`
+          permissionDecisionReason: reason
         }
       };
 
