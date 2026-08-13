@@ -19,8 +19,17 @@ process.stdin.on("end", () => {
                         /\.generated\.[jt]sx?$/.test(normalizedPath);
 
     if (isImmutable) {
-      console.error(`Refused: '${filePath}' is an immutable build artifact or auto-generated file.`);
-      process.exit(2);
+      // ASK MODE: Ask the human for explicit confirmation when modifying immutable files
+      const response = {
+        hookSpecificOutput: {
+          hookEventName: "PreToolUse",
+          permissionDecision: "ask",
+          permissionDecisionReason: `Target file '${filePath}' is an immutable build artifact or auto-generated file. Confirm if you explicitly intend to modify it.`
+        }
+      };
+
+      console.log(JSON.stringify(response));
+      process.exit(0);
     }
 
     process.exit(0);
