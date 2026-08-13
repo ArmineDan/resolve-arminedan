@@ -171,6 +171,12 @@ function main(data) {
     }
 
     if (testPattern.test(command)) {
+      // INTERPRETER BYPASS PROTECTION: Prevent running language runtimes / subshells
+      // (e.g. node, python, perl, ruby) that reference test files to bypass shell checks.
+      if (/\b(node|python|python3|perl|ruby|bash|sh|exec|eval)\b/i.test(command)) {
+        block(`Executing runtime interpreters targeting test files is prohibited: "${command}"`);
+      }
+
       if (/\b(rm|mv|unlink|shred)\b/i.test(command)) {
         block(`Removing/moving test files via Bash is prohibited: "${command}"`);
       }
