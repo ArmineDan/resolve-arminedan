@@ -23,6 +23,27 @@ try {
 
 const testPattern = /(\.test\.[jt]sx?|\.spec\.[jt]sx?|__tests__|__mocks__|[\/\\]test[\/\\]|[\/\\]tests[\/\\])/i;
 
+// A script can dodge a plain substring scan by splitting a path across
+// separate string literals (e.g. `'foo.spec' + '.ts'`), so the contiguous
+// text `.spec.ts` never appears verbatim in the source. Concatenating the
+// raw contents of every string/template literal in source order collapses
+// that split back together, so the pattern still matches.
+const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*?)\1/g;
+function collapseStringLiterals(content) {
+  let blob = '';
+  let m;
+  stringLiteralPattern.lastIndex = 0;
+  while ((m = stringLiteralPattern.exec(content))) {
+    blob += m[2];
+  }
+  return blob;
+}
+
+// A one-off/throwaway script has little legitimate reason to call fs write
+// or delete APIs at all; scripts that do are exactly the shape a bypass
+// attempt takes, so treat that shape itself as suspicious.
+const destructiveFsCallPattern = /\bfs(?:\.promises)?\.(writeFile(?:Sync)?|unlink(?:Sync)?|rm(?:dir)?(?:Sync)?|truncate(?:Sync)?)\s*\(/;
+
 function block(message) {
   const response = {
     decision: 'block',
@@ -172,9 +193,15 @@ function main(data) {
         const scriptPath = nodePath.isAbsolute(scriptArg) ? scriptArg : nodePath.resolve(scriptArg);
         if (fs.existsSync(scriptPath) && fs.statSync(scriptPath).isFile()) {
           const scriptContent = fs.readFileSync(scriptPath, 'utf-8');
-          if (testPattern.test(scriptContent)) {
+          const collapsed = collapseStringLiterals(scriptContent);
+          if (testPattern.test(scriptContent) || testPattern.test(collapsed)) {
             block(
-              `Executing "${scriptArg}" is prohibited: it references a test-file path internally, which is a disallowed indirection around interpreter-bypass protection: "${command}"`
+              `Executing "${scriptArg}" is prohibited: it references a test-file path internally (directly or via split string literals), which is a disallowed indirection around interpreter-bypass protection: "${command}"`
+            );
+          }
+          if (destructiveFsCallPattern.test(scriptContent)) {
+            block(
+              `Executing "${scriptArg}" is prohibited: it calls a destructive fs write/delete API (writeFile/unlink/rm/truncate), which a one-off script invoked this way has no legitimate need for and is a common indirection around test-file protection: "${command}"`
             );
           }
         }
