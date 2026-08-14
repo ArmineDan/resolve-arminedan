@@ -19,7 +19,7 @@ process.stdin.on("end", () => {
                         /\.generated\.[jt]sx?$/.test(normalizedPath);
 
     if (isImmutable) {
-      const reason = `Target file '${filePath}' is an immutable build artifact or auto-generated file. Confirm if you explicitly intend to modify it.`;
+      const reason = `Heads up: '${filePath}' is normally auto-generated and shouldn't be hand-edited. Confirm below if you're sure you want to change it anyway.`;
 
       // Return both top-level and nested structures for maximum CLI compatibility
       const response = {
