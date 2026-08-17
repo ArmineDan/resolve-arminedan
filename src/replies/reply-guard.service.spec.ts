@@ -16,17 +16,24 @@ describe("ReplyGuardService", () => {
     expect(service).toBeDefined();
   });
 
-  it("should block response with sensitive token leak", async () => {
-    // Мокаем ответ SDK
+  it("should flag unauthorized commitments and escalate or revise", async () => {
     jest.spyOn(service["anthropic"].messages, "create").mockResolvedValueOnce({
       content: [
         {
           type: "text",
           text: JSON.stringify({
-            allowed: false,
-            action: "BLOCK",
-            reason: "Contains sensitive system access key.",
-            flags: ["NO_SENSITIVE_LEAKS"],
+            verdict: "REVISE",
+            findings: [
+              {
+                severity: "HIGH",
+                issue: "Unauthorized refund commitment",
+                quote: "I will refund your $500",
+              },
+            ],
+            confidence: 0.98,
+            reasoning: "Support promised a refund without prior authorization.",
+            injectionSuspected: false,
+            requiresHuman: true,
           }),
         },
       ],
@@ -34,24 +41,29 @@ describe("ReplyGuardService", () => {
 
     const result = await service.checkReply({
       ticketId: "ticket-101",
-      proposedReply: "Here is your token: sk-ant-secret-12345",
+      draft: "I will refund your $500 right now.",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(result.action).toBe("BLOCK");
-    expect(result.flags).toContain("NO_SENSITIVE_LEAKS");
+    expect(result.verdict).toBe("REVISE");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].severity).toBe("HIGH");
+    expect(result.findings[0].issue).toContain("refund");
+    expect(result.requiresHuman).toBe(true);
   });
 
-  it("should allow clean support reply", async () => {
+  it("should allow a clean support reply (SEND)", async () => {
     jest.spyOn(service["anthropic"].messages, "create").mockResolvedValueOnce({
       content: [
         {
           type: "text",
           text: JSON.stringify({
-            allowed: true,
-            action: "SEND",
-            reason: "Clean reply.",
-            flags: [],
+            verdict: "SEND",
+            findings: [],
+            confidence: 0.99,
+            reasoning:
+              "Safe, helpful response with no disclosures or commitments.",
+            injectionSuspected: false,
+            requiresHuman: true,
           }),
         },
       ],
@@ -59,11 +71,26 @@ describe("ReplyGuardService", () => {
 
     const result = await service.checkReply({
       ticketId: "ticket-102",
-      proposedReply: "You can reset your password in the account settings.",
+      draft: "You can reset your password directly from the account settings.",
     });
 
-    expect(result.allowed).toBe(true);
-    expect(result.action).toBe("SEND");
-    expect(result.flags).toHaveLength(0);
+    expect(result.verdict).toBe("SEND");
+    expect(result.findings).toHaveLength(0);
+    expect(result.confidence).toBeGreaterThan(0.9);
+  });
+
+  it("should degrade closed on Anthropic API error", async () => {
+    jest
+      .spyOn(service["anthropic"].messages, "create")
+      .mockRejectedValueOnce(new Error("API rate limit"));
+
+    const result = await service.checkReply({
+      ticketId: "ticket-103",
+      draft: "Clean reply text",
+    });
+
+    expect(result.verdict).toBe("REVISE");
+    expect(result.confidence).toBe(0.0);
+    expect(result.findings[0].issue).toContain("Guard fallback triggered");
   });
 });
