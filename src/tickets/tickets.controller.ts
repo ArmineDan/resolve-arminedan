@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -44,9 +45,33 @@ export class TicketsController {
   @Post(':id/comments')
   addComment(
     @Param('id') id: string,
-    @Body() body: { author?: string; body?: string; internal?: boolean },
+    @Body()
+    body: {
+      author?: string;
+      body?: string;
+      internal?: boolean;
+      cannedResponseId?: string;
+    },
     @Headers('x-actor') actor = 'api',
   ) {
     return this.ticketsService.addComment(actor, id, body ?? {});
+  }
+
+  @Post(':id/tags')
+  addTag(
+    @Param('id') id: string,
+    @Body() body: { name?: string },
+    @Headers('x-actor') actor = 'api',
+  ) {
+    return this.ticketsService.addTag(actor, id, body?.name);
+  }
+
+  @Delete(':id/tags/:name')
+  removeTag(
+    @Param('id') id: string,
+    @Param('name') name: string,
+    @Headers('x-actor') actor = 'api',
+  ) {
+    return this.ticketsService.removeTag(actor, id, name);
   }
 }

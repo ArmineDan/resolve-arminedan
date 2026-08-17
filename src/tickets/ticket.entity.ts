@@ -5,6 +5,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { TicketComment } from './ticket-comment.entity';
+import { TicketTag } from './ticket-tag.entity';
 
 export type TicketStatus =
   | 'new'
@@ -42,6 +43,11 @@ export class Ticket {
     eager: true,
   })
   comments: TicketComment[];
+
+  // not a TypeORM relation — populated by TicketsRepository from the
+  // standalone ticket_tags table, so entities relying on this class don't
+  // need to register TicketTag to build their schema
+  tags: TicketTag[];
 
   @Column({ type: 'varchar' })
   createdAt: string;
