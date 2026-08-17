@@ -88,7 +88,7 @@ describe("ReplyGuardService", () => {
             reasoning:
               "Safe, helpful response with no disclosures or commitments.",
             injectionSuspected: false,
-            requiresHuman: true,
+            requiresHuman: false,
           }),
         },
       ],
@@ -114,8 +114,9 @@ describe("ReplyGuardService", () => {
       draft: "Clean reply text",
     });
 
-    expect(result.verdict).toBe("REVISE");
+    expect(result.verdict).toBe("ESCALATE");
     expect(result.confidence).toBe(0.0);
-    expect(result.findings[0].issue).toContain("Guard fallback triggered");
+    expect(result.findings[0].issue).toContain("SERVICE_UNAVAILABLE");
+    expect(result.requiresHuman).toBe(true);
   });
 });
