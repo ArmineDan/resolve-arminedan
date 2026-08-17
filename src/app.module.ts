@@ -5,7 +5,7 @@ import { TicketsModule } from "./tickets/tickets.module";
 import { StatsModule } from "./stats/stats.module";
 import { HealthModule } from "./health/health.module";
 import { AppController } from "./app.controller";
-import { ReplyGuardModule } from "./reply-guard/reply-guard.module";
+import { ReplyGuardModule } from "./replies/reply-guard.module";
 
 @Module({
   imports: [
