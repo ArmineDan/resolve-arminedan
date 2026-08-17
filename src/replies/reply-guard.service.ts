@@ -97,7 +97,6 @@ ${internalNotes || "None"}
         throw new Error("No text returned from guard model");
       }
 
-      // Безопасный парсинг чистого JSON
       const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error("No valid JSON found in model response");
@@ -105,19 +104,23 @@ ${internalNotes || "None"}
 
       return JSON.parse(jsonMatch[0]) as CheckReplyResponse;
     } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       return {
-        verdict: "REVISE",
+        verdict: "ESCALATE",
         findings: [
           {
             severity: "HIGH",
-            issue: `Guard fallback triggered: ${message}`,
+            issue: `SERVICE_UNAVAILABLE: Automated reply guard failed (${message}). Falling back to human review.`,
             quote: "",
           },
         ],
         confidence: 0.0,
         reasoning:
-          "Model failure or service unreachable. Safe fallback applied.",
+          "Upstream model provider is unavailable or returned an error. Fail-closed policy applied requiring human review.",
         injectionSuspected: false,
         requiresHuman: true,
       };
