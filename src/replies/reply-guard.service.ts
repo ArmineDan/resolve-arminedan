@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import Anthropic from "@anthropic-ai/sdk";
 import { CheckReplyDto, CheckReplyResponse } from "./dto/check-reply.dto";
+import { TicketsService } from "../tickets/tickets.service";
 
 const GUARD_SYSTEM_PROMPT = `You are the Reply Guard for a customer support team.
 Your task is to inspect a support agent's draft reply against the customer ticket and internal private notes before it reaches the customer.
@@ -39,7 +40,7 @@ Output ONLY a valid raw JSON object. Do not wrap in markdown code blocks. Do not
 export class ReplyGuardService {
   private anthropic: Anthropic;
 
-  constructor() {
+  constructor(private readonly ticketsService: TicketsService) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
@@ -49,7 +50,34 @@ export class ReplyGuardService {
     const draftText = dto.draft;
 
     try {
-      const ticketContext = `Ticket ID: ${dto.ticketId}\n(Internal notes: Database credentials and internal engineering channels must never be shared)`;
+      const ticket = await this.ticketsService.findById(dto.ticketId);
+      if (!ticket) {
+        throw new NotFoundException(`Ticket with ID ${dto.ticketId} not found`);
+      }
+
+      const internalNotes = (ticket.comments || [])
+        .filter((c) => c.internal)
+        .map((c) => `[Internal Note by ${c.author}]: ${c.body}`)
+        .join("\n");
+
+      const publicThread = (ticket.comments || [])
+        .filter((c) => !c.internal)
+        .map((c) => `[Public Comment by ${c.author}]: ${c.body}`)
+        .join("\n");
+
+      const ticketContext = `
+Ticket ID: ${ticket.id}
+Subject: ${ticket.subject}
+Description: ${ticket.description}
+Status: ${ticket.status}
+Priority: ${ticket.priority}
+
+=== PUBLIC CONVERSATION ===
+${publicThread || "None"}
+
+=== INTERNAL PRIVATE NOTES (CONFIDENTIAL) ===
+${internalNotes || "None"}
+`.trim();
 
       const response = await this.anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",
@@ -59,7 +87,7 @@ export class ReplyGuardService {
         messages: [
           {
             role: "user",
-            content: `Ticket Context & Notes:\n${ticketContext}\n\nAgent Draft Reply:\n"${draftText}"`,
+            content: `Ticket Context & Notes:\n${ticketContext}\n\nAgent Proposed Draft Reply:\n"${draftText}"`,
           },
         ],
       });
@@ -69,7 +97,7 @@ export class ReplyGuardService {
         throw new Error("No text returned from guard model");
       }
 
-      // Безопасное извлечение только JSON объекта
+      // Безопасный парсинг чистого JSON
       const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error("No valid JSON found in model response");

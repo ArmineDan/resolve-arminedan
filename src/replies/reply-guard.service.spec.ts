@@ -1,12 +1,37 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ReplyGuardService } from "./reply-guard.service";
+import { TicketsService } from "../tickets/tickets.service";
 
 describe("ReplyGuardService", () => {
   let service: ReplyGuardService;
 
+  const mockTicketsService = {
+    findById: jest.fn().mockResolvedValue({
+      id: "ticket-101",
+      subject: "Password Reset Help",
+      description: "Customer cannot access their account.",
+      status: "open",
+      priority: "normal",
+      comments: [
+        {
+          id: "cmt-1",
+          author: "admin",
+          body: "Internal note: Never disclose root database password.",
+          internal: true,
+        },
+      ],
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ReplyGuardService],
+      providers: [
+        ReplyGuardService,
+        {
+          provide: TicketsService,
+          useValue: mockTicketsService,
+        },
+      ],
     }).compile();
 
     service = module.get<ReplyGuardService>(ReplyGuardService);
